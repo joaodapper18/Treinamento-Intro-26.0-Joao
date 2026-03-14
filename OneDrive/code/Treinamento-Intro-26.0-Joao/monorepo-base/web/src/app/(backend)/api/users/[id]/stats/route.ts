@@ -3,31 +3,25 @@ import { db } from "@/lib/db";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = params.id;
-
+   
+    const { id } = await params;
 
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: { id: id },
       select: { name: true }
     });
 
-
     const compras = await db.compra.findMany({
-      where: { userId: userId },
-      include: { 
-        produtos: true 
-      }
+      where: { userId: id },
+      include: { produtos: true }
     });
-
 
     const totalGasto = compras.reduce((acc, c) => acc + c.precoTotal, 0);
 
-
     const contagemProdutos: Record<string, { nome: string; qtd: number }> = {};
-
     compras.forEach((compra) => {
       compra.produtos.forEach((produto) => {
         if (!contagemProdutos[produto.id]) {
@@ -37,15 +31,8 @@ export async function GET(
       });
     });
 
-
-    const produtosOrdenados = Object.values(contagemProdutos).sort(
-      (a, b) => b.qtd - a.qtd
-    );
-    
-    const produtoMaisComprado = produtosOrdenados.length > 0 
-      ? produtosOrdenados[0].nome 
-      : "Nenhum";
-
+    const produtosOrdenados = Object.values(contagemProdutos).sort((a, b) => b.qtd - a.qtd);
+    const produtoMaisComprado = produtosOrdenados.length > 0 ? produtosOrdenados[0].nome : "Nenhum";
 
     return NextResponse.json({
       nomeUsuario: user?.name || "Usuário não encontrado",
@@ -58,9 +45,6 @@ export async function GET(
 
   } catch (error) {
     console.error("Erro na rota de stats:", error);
-    return NextResponse.json(
-      { error: "Erro ao calcular estatísticas" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erro ao calcular estatísticas" }, { status: 500 });
   }
 }
