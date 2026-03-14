@@ -24,9 +24,11 @@ export async function PATCH(
 ) {
   try {
     const body = await req.json();
+    
     const produtoAtualizado = await MathService.updateProduto(params.id, body);
     return NextResponse.json(produtoAtualizado);
   } catch (error) {
+    console.error(error); 
     return NextResponse.json({ error: "Erro ao atualizar produto" }, { status: 400 });
   }
 }

@@ -28,11 +28,18 @@ export const MathService = {
   },
 
 
-  async updateProduto(id: string, data: { nome?: string; preco?: number; descricao?: string }) {
-    return await db.produto.update({
-      where: { id },
-      data
-    });
+ async updateProduto(id: string, data: any) {
+
+    if (data.categoriaIds) {
+      return await db.produto.update({
+        where: { id },
+        data: {
+          ...data,
+          categoriaIds: data.categoriaIds 
+        }
+      });
+    }
+    return await db.produto.update({ where: { id }, data });
   },
 
 
