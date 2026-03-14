@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 
 export const MathService = {
-
+ 
   async getProdutos() {
     return await db.produto.findMany({ 
       include: { categorias: true } 
@@ -17,58 +17,55 @@ export const MathService = {
   },
 
 
-  async createProduto(data: { nome: string; preco: number; descricao: string }) {
-    return await db.produto.create({ 
-      data: {
-        nome: data.nome,
-        preco: data.preco,
-        descricao: data.descricao
-      }
-    });
-  },
-
-
- async updateProduto(id: string, data: any) {
-
-    if (data.categoriaIds) {
-      return await db.produto.update({
-        where: { id },
-        data: {
-          ...data,
-          categoriaIds: data.categoriaIds 
-        }
-      });
-    }
-    return await db.produto.update({ where: { id }, data });
-  },
-
-
-  async deleteProduto(id: string) {
-    return await db.produto.delete({
-      where: { id }
-    });
-  },
-
-
   async checkout(userId: string, produtoIds: string[]) {
-    const produtosEncontrados = await db.produto.findMany({
-      where: {
-        id: { in: produtoIds }
-      }
+   
+    const produtosNoBanco = await db.produto.findMany({
+      where: { id: { in: produtoIds } }
     });
 
-    const precoTotal = produtosEncontrados.reduce((acc, p) => acc + p.preco, 0);
+   
+    const precoTotal = produtoIds.reduce((acc, id) => {
+      const produto = produtosNoBanco.find((p) => p.id === id);
+      return acc + (produto?.preco || 0);
+    }, 0);
 
+  
     return await db.compra.create({
       data: {
         precoTotal,
-        user: {
-          connect: { id: userId }
-        },
+        userId: userId, 
         produtos: {
-          connect: produtoIds.map(id => ({ id }))
+          connect: produtoIds.map(id => ({ id })) 
         }
       }
     });
+  },
+
+
+  async getUserStats(userId: string) {
+    const compras = await db.compra.findMany({
+      where: { userId },
+      include: { produtos: true }
+    });
+
+    const totalGasto = compras.reduce((acc, compra) => acc + compra.precoTotal, 0);
+    const totalCompras = compras.length;
+
+ 
+    const contagemProdutos: Record<string, number> = {};
+    compras.forEach(compra => {
+      compra.produtos.forEach(p => {
+        contagemProdutos[p.nome] = (contagemProdutos[p.nome] || 0) + 1;
+      });
+    });
+
+    const produtoMaisComprado = Object.entries(contagemProdutos)
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || "Nenhum";
+
+    return {
+      totalGasto,
+      totalCompras,
+      produtoMaisComprado
+    };
   }
 };

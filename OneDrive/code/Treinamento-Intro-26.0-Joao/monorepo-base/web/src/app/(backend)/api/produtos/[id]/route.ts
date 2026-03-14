@@ -1,46 +1,53 @@
 import { NextResponse } from "next/server";
-import { MathService } from "@/services/mathService";
+import { db } from "@/lib/db";
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, { params }: RouteParams) {
   try {
-    const produto = await MathService.getProdutoById(params.id);
-    if (!produto) {
-      return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
-    }
+    const { id } = await params;
+    const produto = await db.produto.findUnique({
+      where: { id },
+      include: { categorias: true }
+    });
+
+    if (!produto) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
     return NextResponse.json(produto);
   } catch (error) {
-    return NextResponse.json({ error: "Erro ao buscar produto" }, { status: 500 });
+    return NextResponse.json({ error: "Erro ao buscar" }, { status: 500 });
   }
 }
 
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const body = await req.json();
-    
-    const produtoAtualizado = await MathService.updateProduto(params.id, body);
-    return NextResponse.json(produtoAtualizado);
+
+    const atualizado = await db.produto.update({
+      where: { id },
+      data: {
+        nome: body.nome,
+        descricao: body.descricao,
+        preco: body.preco ? Number(body.preco) : undefined
+      }
+    });
+
+    return NextResponse.json(atualizado);
   } catch (error) {
-    console.error(error); 
-    return NextResponse.json({ error: "Erro ao atualizar produto" }, { status: 400 });
+    return NextResponse.json({ error: "Erro ao atualizar" }, { status: 400 });
   }
 }
 
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, { params }: RouteParams) {
   try {
-    await MathService.deleteProduto(params.id);
-    return NextResponse.json({ message: "Produto deletado com sucesso" });
+    const { id } = await params;
+    await db.produto.delete({ where: { id } });
+    return NextResponse.json({ message: "Deletado com sucesso" });
   } catch (error) {
     return NextResponse.json({ error: "Erro ao deletar" }, { status: 400 });
   }
